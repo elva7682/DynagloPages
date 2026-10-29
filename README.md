@@ -1,43 +1,52 @@
-# DYNA Spacecraft Schedule Viewer
+# DYNA / GLO Spacecraft ATS Dashboard
 
-A fully static spacecraft schedule viewer for GitHub Pages. No backend or external dependencies.
+Static, client-side schedule visualization for GitHub Pages. No database, API keys, server, or build process needed.
 
-## Deployment
+## Features
 
-1. Create a public GitHub repository, for example `spacecraft-schedule`.
-2. Add `index.html`, `style.css`, `app.js`, and `schedule.prc` to the repository root.
-3. On GitHub, go to **Settings → Pages → Build and deployment → Source: Deploy from a branch**.
-4. Select **main** and **/(root)**, then save.
-5. Open `https://YOUR_USERNAME.github.io/spacecraft-schedule/` after GitHub publishes the site.
+- Mission tabs: **DYNA** and **GLO**, each with its own schedule data, clocks, event list, and 24-hour UTC timeline.
+- Top **CURRENT EVENT:** card shows the last scheduled event whose start is at or before the current time, including UTC / Mountain start times and elapsed time. Before the first start it displays 'Awaiting first event'. After the last start, it continues showing the last event (not actual spacecraft telemetry).
+- The next three events display live countdowns; Mountain Time uses the `America/Denver` time zone with DST handling.
+- Timeline lanes and full table for DAYGLOW, AURORA, ECLIPSE, IDLE, XBAND DOWNLINK (HDR_ATT), and UHF POINTING (UHF_ATT). `_START` suffixes are removed; other names such as `_CONT` are shown with spaces instead of underscores.
+- Search, filters, UTC day navigation, live now line, and marker-to-table navigation.
 
-If you want the site at `https://YOUR_USERNAME.github.io/`, name the repository `YOUR_USERNAME.github.io`.
+## Publish
 
-## 24-hour timeline
+1. Make a public GitHub repository, such as `spacecraft-schedule`.
+2. Upload `index.html`, `app.js`, `style.css`, and your `.prc` files to the repository root.
+3. In **Settings → Pages**, select **Deploy from a branch**, branch **main**, folder **/(root)**, and save.
+4. Open `https://YOUR_USERNAME.github.io/spacecraft-schedule/`.
 
-The timeline defaults to the current **UTC** calendar day and advances automatically at UTC midnight. Use Previous, Next, and Today (UTC) to browse other dates. Event starts appear as color-coded dots in separate DAYGLOW/AURORA/ECLIPSE lanes. Closely spaced events are grouped into a numbered marker; hover to read timestamps, or click to scroll to the first event in the group in the full event table. A pink vertical line tracks live UTC time on the current day. The date range below the title shows the corresponding Mountain Time window, including automatic MDT/MST transitions.
+## Loading schedules
 
-## Updating the schedule
+The site automatically loads these **optional** files from the repository root:
 
-To update the schedule for all visitors, replace `schedule.prc` in your repository with the new ATS file. Users can refresh or press **Reload** to retrieve it. The **Upload .prc** control loads a local file temporarily for just that visitor; it does not upload or publish the file to GitHub.
+- `dyna_ats_26_301.prc`: included example DYNA schedule.
+- `glo_schedule.prc`: optional GLO schedule (add it yourself).
+- `dynaglo_schedule.prc`: optional shared schedule, applies to both missions.
 
-## How times and events are interpreted
+For your own permanent schedules, you can rename the DYNA ATS to `dyna_ats_26_301.prc` or edit the array in the `loadBundled()` function of `app.js` to match your new filenames. Similarly, place your GLO or shared file under the names above. The sample `examples/dyna_ats_26_291.prc` is supplied as a reference only and is **not** automatically loaded.
 
-Each event must have a semicolon-comment header such as `; NVM_SMALL69 - DAYGLOW_START`, followed by a comment `; absolute suspend until 2026/301-14:00:20`, an actual `CMD DYNA SEQ_SUSPEND_ABS` instruction, and a `CMD DYNA SEQ_CALL ... BUFFID NVM_SMALL69` instruction. The buffer identifiers must match. `NONE - ATS_START` and `NONE - ATS_END` are ignored.
+Alternatively, use **Upload .prc (one or more)** in the browser. This updates the view only in your current browser session; it does not upload to GitHub or persist across page refreshes.
 
-The comment's YYYY/DDD-HH:MM:SS timestamp is interpreted as UTC (DDD = day of year). The numeric `TIME ... DN` field is deliberately not used, because its epoch is mission-specific. Start times are scheduled command times, **not confirmed spacecraft execution**. "PASSED" means the scheduled start time has passed, not that execution succeeded. Events with duplicate names are retained. The schedule end/start range is taken from the ATS header, when present; otherwise from the first and last parsed event. Mountain Time is `America/Denver` (MDT/MST, with automatic daylight-saving transition).
+**Filename mission routing (case-insensitive):**
 
-Countdowns show `HH:MM:SS` until 24 hours, then `Xd HH:MM:SS`, so they stay readable for multi-day events. All countdowns and statuses refresh once per second according to the viewer's local device clock.
+- Contains `dynaglo_`: installs the file for both DYNA and GLO.
+- Contains `dyna_` (but not `dynaglo_`): installs it for DYNA.
+- Contains `glo_` (but not `dynaglo_`): installs it for GLO.
 
-## Local testing
+The original ATS filename is used for this determination, regardless of the `CMD GLO` or `CMD DYNA` commands inside the schedule. If several files target the same mission, the last loaded one wins. Upload files for both missions together if desired; use tabs to switch between them.
 
-To run locally, open a terminal in this folder and run:
+## Parsing and timing
 
-```shell
-python -m http.server 8000
-```
+For each `; NVM_SMALL## - EVENT_NAME` header, the parser requires an `absolute suspend until YYYY/DDD-HH:MM:SS` comment, a `SEQ_SUSPEND_ABS` command, and a matching `SEQ_CALL` referring to the same NVM buffer. `NONE - ATS_START` and `ATS_END` are not displayed as events. All schedule timestamps are interpreted as UTC.
 
-Open `http://localhost:8000/`. Opening `index.html` directly from the filesystem may block loading `schedule.prc` because of browser security rules. You can still use Upload .prc.
+Events are scheduled commands, **not evidence that flight software executed them successfully**. The current-event label means the most recently scheduled event start, not a live operational mode. The device's time drives the displays.
 
-## Caveats
+To preview locally, use a small local static server such as `python -m http.server 8000`, then open `http://localhost:8000` (loading the HTML via `file://` may block fetching `.prc` files).
 
-A public GitHub repository and its published `.prc` are publicly accessible. Review the file for sensitive information before publishing. Anyone visiting the page can see the schedule and its event times. The site is purely static; it does not poll Outlook, ingest live telemetry, or automatically receive newly generated schedules unless you commit a replacement schedule to GitHub.
+## Event display names and durations
+
+Event names ending in `_START` or `_CONT` are displayed without those suffixes. `HDR_ATT` displays as XBAND DOWNLINK; `UHF_ATT` displays as UHF POINTING.
+
+Each event duration is calculated as the time from its scheduled start to the **next event start**, including events with the same timestamp (0 seconds). Durations are displayed as HH:MM:SS, prefixed with days for spans longer than 24 hours. The final event displays an em dash (`—`), because no following event timestamp exists. Duration represents time between scheduled events, not actual command execution duration.

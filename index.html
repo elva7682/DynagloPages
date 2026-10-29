@@ -4,29 +4,29 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0a1224">
-  <title>DYNA | Spacecraft Schedule</title>
+  <title>Spacecraft Schedule | DYNA &amp; GLO</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="shell">
     <header class="topbar">
-      <div class="identity"><div class="logo" aria-hidden="true">◈</div><div><div class="eyebrow">MISSION OPERATIONS / SCHEDULE VIEWER</div><h1>DYNA <span>Schedule</span></h1></div></div>
-      <div class="tools"><span class="status"><span class="dot"></span><span id="sourceStatus">Loading schedule</span></span><label class="upload" for="fileInput">Upload .prc</label><input id="fileInput" type="file" accept=".prc,.txt,text/plain" hidden><button id="reloadBtn" type="button">Reload</button></div>
+      <div class="identity"><div class="logo" aria-hidden="true">◈</div><div><div class="eyebrow">MISSION OPERATIONS / SCHEDULE VIEWER</div><h1><span id="missionTitle">DYNA</span> <span>Schedule</span></h1></div></div>
+      <div class="tools"><span class="status"><span class="dot"></span><span id="sourceStatus">Loading schedule</span></span><label class="upload" for="fileInput">Upload .prc (one or more)</label><input id="fileInput" type="file" accept=".prc,.txt,text/plain" multiple hidden><button id="reloadBtn" type="button">Reload</button></div>
     </header>
-    <div id="error" class="error" hidden role="alert"></div>
+    <nav class="missionTabs" aria-label="Spacecraft selection"><button id="tabDyna" class="tab active" type="button" aria-pressed="true">DYNA</button><button id="tabGlo" class="tab" type="button" aria-pressed="false">GLO</button></nav><div id="error" class="error" hidden role="alert"></div>
     <section class="clocks" aria-label="Current time">
       <div class="clock"><div class="eyebrow">CURRENT TIME · UTC</div><div id="utcClock" class="clockValue">--:--:--</div><div id="utcDate" class="date">—</div></div>
       <div class="clock"><div class="eyebrow">CURRENT TIME · MOUNTAIN</div><div id="mtClock" class="clockValue">--:--:--</div><div id="mtDate" class="date">—</div></div>
       <div class="clock scheduleMeta"><div class="eyebrow">SCHEDULE FILE</div><div id="scheduleName" class="metaName">—</div><div id="scheduleRange" class="date">—</div><div id="eventCount" class="smallMeta">—</div></div>
     </section>
-    <section class="hero panel"><div class="sectionTop"><span class="eyebrow">NEXT SCHEDULED EVENT</span><span id="missionPhase" class="phase">—</span></div>
-      <div class="heroGrid"><div class="nextMain"><div id="nextName" class="nextName">Loading…</div><div id="nextBuffer" class="buffer">—</div><div class="startTimes"><span id="nextUtc">UTC —</span><span id="nextMt">MT —</span></div></div><div class="countdownArea"><div class="eyebrow">TIME TO START</div><div id="countdown" class="countdown" aria-live="off">--:--:--</div><div id="countdownNote" class="date">—</div></div></div>
+    <section class="hero panel"><div class="sectionTop"><span class="eyebrow">CURRENT EVENT:</span><span id="missionPhase" class="phase">—</span></div>
+      <div class="heroGrid"><div class="nextMain"><div id="nextName" class="nextName">Loading…</div><div id="nextBuffer" class="buffer">—</div><div class="startTimes"><span id="nextUtc">UTC —</span><span id="nextMt">MT —</span></div></div><div class="countdownArea"><div class="eyebrow">TIME IN CURRENT EVENT</div><div id="countdown" class="countdown" aria-live="off">--:--:--</div><div id="countdownNote" class="date">—</div></div></div>
       <div class="progressTrack"><div id="progressFill" class="progressFill"></div></div>
       <div class="timelineFoot"><span id="progressLabel">—</span><span id="activeLabel">—</span></div>
     </section>
     <div class="middle">
       <section class="panel upcoming"><div class="sectionTop"><h2>Coming up</h2><span class="subtle">Next 3 events · live countdown</span></div><div id="upcomingList" class="upcomingList"></div></section>
-      <section class="panel snapshot"><div class="sectionTop"><h2>Schedule overview</h2></div><div class="stat"><span>Total events</span><strong id="totalEvents">—</strong></div><div class="stat"><span>Completed starts</span><strong id="completedEvents">—</strong></div><div class="stat"><span>Remaining starts</span><strong id="remainingEvents">—</strong></div><div class="legend"><span><i class="swatch c1"></i>DAYGLOW</span><span><i class="swatch c2"></i>AURORA</span><span><i class="swatch c3"></i>ECLIPSE</span></div><div class="note">Events are shown from planned command times, not live spacecraft telemetry.</div></section>
+      <section class="panel snapshot"><div class="sectionTop"><h2>Schedule overview</h2></div><div class="stat"><span>Total events</span><strong id="totalEvents">—</strong></div><div class="stat"><span>Completed starts</span><strong id="completedEvents">—</strong></div><div class="stat"><span>Remaining starts</span><strong id="remainingEvents">—</strong></div><div class="legend"><span><i class="swatch c1"></i>DAYGLOW</span><span><i class="swatch c2"></i>AURORA</span><span><i class="swatch c3"></i>ECLIPSE</span><span><i class="swatch c4"></i>IDLE</span><span><i class="swatch c5"></i>XBAND DOWNLINK</span><span><i class="swatch c6"></i>UHF POINTING</span></div><div class="note">Events are shown from planned command times, not live spacecraft telemetry.</div></section>
     </div>
     <section class="panel timelinePanel" aria-label="24-hour event timeline">
       <div class="tableHeader timelineHeader"><div><h2>24-hour event timeline</h2><div class="subtle">UTC day view · grouped markers indicate nearby event starts · select a marker to find its event</div></div>
@@ -37,12 +37,15 @@
         <div class="timelineLaneName"><i class="swatch c1"></i>DAYGLOW</div><div class="timelineLane" id="laneDayglow"></div>
         <div class="timelineLaneName"><i class="swatch c2"></i>AURORA</div><div class="timelineLane" id="laneAurora"></div>
         <div class="timelineLaneName"><i class="swatch c3"></i>ECLIPSE</div><div class="timelineLane" id="laneEclipse"></div>
+        <div class="timelineLaneName"><i class="swatch c4"></i>IDLE</div><div class="timelineLane" id="laneIdle"></div>
+        <div class="timelineLaneName"><i class="swatch c5"></i>XBAND DOWNLINK</div><div class="timelineLane" id="laneXband"></div>
+        <div class="timelineLaneName"><i class="swatch c6"></i>UHF POINTING</div><div class="timelineLane" id="laneUhf"></div>
         <div class="timelineAxisName">UTC TIME</div><div class="timelineAxis timelineBottomAxis" id="timelineBottomAxis"></div>
       </div>
       <div class="timelineFoot"><span id="timelineCount">—</span><span><i class="nowKey"></i> Live UTC time indicator · hover or select event markers for details</span></div>
     </section>
-    <section class="panel tablePanel"><div class="tableHeader"><div><h2>Full event schedule</h2><div class="subtle">Automatically highlights the next event. All times are displayed in both time zones.</div></div><div class="filters"><input id="search" type="search" placeholder="Search event or buffer" aria-label="Search events"><select id="viewFilter" aria-label="Event filter"><option value="all">All events</option><option value="upcoming">Upcoming only</option><option value="past">Past only</option></select><button id="jumpNext" type="button">Jump to next</button></div></div><div class="tableScroll"><table><thead><tr><th>#</th><th>EVENT</th><th>BUFFER</th><th>START · UTC</th><th>START · MOUNTAIN</th><th>STATUS</th></tr></thead><tbody id="eventsBody"></tbody></table></div><div id="tableSummary" class="tableSummary"></div></section>
-    <footer>DYNA Schedule Viewer · Times reflect your device clock · Mountain time automatically handles daylight saving time · Static GitHub Pages site</footer>
+    <section class="panel tablePanel"><div class="tableHeader"><div><h2>Full event schedule</h2><div class="subtle">Highlights the current event. All times are displayed in both time zones.</div></div><div class="filters"><input id="search" type="search" placeholder="Search event or buffer" aria-label="Search events"><select id="viewFilter" aria-label="Event filter"><option value="all">All events</option><option value="upcoming">Upcoming only</option><option value="past">Past only</option></select><button id="jumpNext" type="button">Jump to next</button></div></div><div class="tableScroll"><table><thead><tr><th>#</th><th>EVENT</th><th>BUFFER</th><th>START · UTC</th><th>START · MOUNTAIN</th><th>DURATION</th><th>STATUS</th></tr></thead><tbody id="eventsBody"></tbody></table></div><div id="tableSummary" class="tableSummary"></div></section>
+    <footer>DYNA / GLO Schedule Viewer · Times reflect your device clock · Mountain time automatically handles daylight saving time · Static GitHub Pages site</footer>
   </div>
   <script src="app.js" defer></script>
 </body>

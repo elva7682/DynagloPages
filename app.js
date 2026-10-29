@@ -1,7 +1,31 @@
 'use strict';
 const $ = id => document.getElementById(id);
 const UTC = 'UTC', MT = 'America/Denver';
-let events = [], sourceName = 'schedule.prc', scheduleBounds = null, lastNext = -2;
+let events = [], sourceName = 'dyna_ats_26_301.prc', scheduleBounds = null, lastNext = -2;
+const missions = { DYNA: null, GLO: null };
+let selectedMission = location.hash.toUpperCase() === '#GLO' ? 'GLO' : 'DYNA';
+function displayName(name) { const n=name.replace(/_(?:START|CONT)$/i,''); return ({ HDR_ATT:'XBAND DOWNLINK', UHF_ATT:'UHF POINTING' })[n.toUpperCase()] || n.replace(/_/g,' '); }
+function targets(name) {
+  const n=name.toLowerCase();
+  if (n.includes('dynaglo_')) return ['DYNA','GLO'];
+  if (n.includes('dyna_')) return ['DYNA'];
+  if (n.includes('glo_')) return ['GLO'];
+  return [];
+}
+function selectMission(mission) {
+  selectedMission=mission;
+  location.hash=mission.toLowerCase();
+  $('missionTitle').textContent=mission;
+  document.title=`${mission} | Spacecraft Schedule`;
+  for (const m of ['DYNA','GLO']) { $('tab'+m[0]+m.slice(1).toLowerCase()).classList.toggle('active',m===mission); $('tab'+m[0]+m.slice(1).toLowerCase()).setAttribute('aria-pressed',String(m===mission)); }
+  const data=missions[mission]; events=data?.events||[]; scheduleBounds=data?.bounds||null; sourceName=data?.name||'No schedule uploaded'; lastNext=-2;
+  $('scheduleName').textContent=sourceName;
+  $('scheduleRange').textContent=scheduleBounds?.start!=null && scheduleBounds?.end!=null ? `${fmt(scheduleBounds.start,UTC)} → ${fmt(scheduleBounds.end,UTC)}`:'—';
+  $('eventCount').textContent=`${events.length} events parsed`;
+  $('sourceStatus').textContent=data?'Schedule loaded':'No schedule for '+mission;
+  showError('');drawTimeline();tick();
+}
+
 
 // Parse YYYY/DDD-HH:MM:SS timestamps as UTC (DDD = day of year).
 function parseDoy(value) {
@@ -22,9 +46,6 @@ function parseSchedule(text) {
   const overview = text.match(/ATS runs from\s+(\d{4}\/\d{3}-\d{2}:\d{2}:\d{2})\s*UTC\s+to\s+(\d{4}\/\d{3}-\d{2}:\d{2}:\d{2})\s*UTC/i);
   if (overview) { lowerBound = parseDoy(overview[1]); upperBound = parseDoy(overview[2]); }
   function closeBlock() {
-    if (header && timestamp !== null && hasSuspend && header.buffer !== 'NONE') {
-      found.push({ ...header, start: timestamp, id: found.length + 1 });
-    }
     header = null; timestamp = null; hasSuspend = false;
   }
   for (const line of lines) {
@@ -42,14 +63,14 @@ function parseSchedule(text) {
     const call = line.match(/^\s*CMD\s+\w+\s+SEQ_CALL\b.*?\bBUFFID\s+(NVM_SMALL\d+)\b/i);
     if (call) {
       if (hasSuspend && timestamp !== null && header.buffer.toUpperCase() === call[1].toUpperCase()) {
-        found.push({ ...header, start: timestamp, id: found.length + 1 });
+        found.push({ ...header, label: displayName(header.name), start: timestamp, id: found.length + 1 });
       }
       // Require a distinct header/suspend/call for each event.
       header = null; timestamp = null; hasSuspend = false;
     }
   }
   found.sort((a, b) => a.start - b.start || a.id - b.id);
-  found.forEach((e,i) => e.id = i+1);
+  found.forEach((e,i) => { e.id = i+1; e.durationMs = i+1 < found.length ? Math.max(0, found[i+1].start - e.start) : null; });
   return { events: found, bounds: { start: lowerBound ?? (found[0]?.start ?? null), end: upperBound ?? (found.at(-1)?.start ?? null) } };
 }
 
@@ -73,12 +94,13 @@ function duration(ms) {
   const padded = [h,m,s].map(n => String(n).padStart(2,'0')).join(':');
   return d ? `${d}d ${padded}` : padded;
 }
+function eventDuration(e) { return e.durationMs === null ? '—' : duration(e.durationMs); }
 function nextIndex(now) {
   let lo = 0, hi = events.length;
   while (lo < hi) { const mid = (lo+hi) >> 1; if (events[mid].start <= now) lo = mid + 1; else hi = mid; }
   return lo;
 }
-function kind(e) { return e.name.toUpperCase().includes('DAYGLOW') ? 'type-dayglow' : e.name.toUpperCase().includes('AURORA') ? 'type-aurora' : e.name.toUpperCase().includes('ECLIPSE') ? 'type-eclipse' : ''; }
+function kind(e) { const n=e.name.toUpperCase(); return n.includes('DAYGLOW') ? 'type-dayglow' : n.includes('AURORA') ? 'type-aurora' : n.includes('ECLIPSE') ? 'type-eclipse' : n.includes('IDLE') ? 'type-idle' : n==='HDR_ATT' ? 'type-xband' : n==='UHF_ATT' ? 'type-uhf' : ''; }
 function create(tag, cls, text) { const el = document.createElement(tag); if (cls) el.className=cls; if (text !== undefined) el.textContent=text; return el; }
 function showError(message) { $('error').textContent = message; $('error').hidden = !message; }
 
@@ -90,11 +112,11 @@ function renderTable(now) {
   for (let i=0;i<events.length;i++) {
     const e = events[i];
     if (mode === 'upcoming' && i < next || mode === 'past' && i >= next) continue;
-    if (q && !(`${e.name} ${e.buffer} ${e.id}`).toLowerCase().includes(q)) continue;
-    const tr = create('tr', [kind(e),i===next?'isNext':i<next?'isPast':''].join(' ').trim());
-    if (i===next) tr.id='nextRow';
-    const fields = [`${e.id}`,e.name,e.buffer,fmt(e.start,UTC),fmt(e.start,MT),i===next?'NEXT':i<next?'PASSED':'UPCOMING'];
-    fields.forEach((value,j) => tr.appendChild(create('td',j===1?'eventCell':j===5?'statusText':'',value)));
+    if (q && !(`${e.name} ${e.label} ${e.buffer} ${e.id}`).toLowerCase().includes(q)) continue;
+    const tr = create('tr', [kind(e),i===next-1?'isCurrent':i<next?'isPast':''].join(' ').trim());
+    if (i===next-1) tr.id='currentRow'; if(i===next)tr.id='nextRow';
+    const fields = [`${e.id}`,e.label,e.buffer,fmt(e.start,UTC),fmt(e.start,MT),eventDuration(e),i===next-1?'CURRENT':i<next?'PASSED':'UPCOMING'];
+    fields.forEach((value,j) => tr.appendChild(create('td',j===1?'eventCell':j===6?'statusText':'',value)));
     frag.appendChild(tr); shown++;
   }
   tbody.appendChild(frag);
@@ -103,8 +125,8 @@ function renderTable(now) {
 // Fixed 24-hour UTC day view. Dates stay in UTC; Mountain labels use IANA timezone rules.
 let timelineDay = Math.floor(Date.now() / 86400000) * 86400000;
 let timelineAutoToday = true;
-const laneSpecs = [['dayglow','laneDayglow'],['aurora','laneAurora'],['eclipse','laneEclipse']];
-function eventLane(e) { const k = kind(e); return k === 'type-dayglow' ? 'dayglow' : k === 'type-aurora' ? 'aurora' : k === 'type-eclipse' ? 'eclipse' : null; }
+const laneSpecs = [['dayglow','laneDayglow'],['aurora','laneAurora'],['eclipse','laneEclipse'],['idle','laneIdle'],['xband','laneXband'],['uhf','laneUhf']];
+function eventLane(e) { const k = kind(e); return k.startsWith('type-') ? k.slice(5) : null; }
 function showEventInTable(e) {
   $('viewFilter').value='all'; $('search').value='';
   renderTable(Date.now());
@@ -142,7 +164,7 @@ function drawTimeline() {
       const first=group[0], avg=group.reduce((acc,e)=>acc+e.start,0)/group.length;
       const marker=create('button',`timelineMarker ${type}${group.length>1?' multi':''}`,group.length>1?String(group.length):'');
       marker.type='button';marker.style.left=`${(avg-timelineDay)/86400000*100}%`;
-      const detail=group.slice(0,6).map(e=>`${fmt(e.start,UTC)} · ${e.name} (${e.buffer})`).join('\n');
+      const detail=group.slice(0,6).map(e=>`${fmt(e.start,UTC)} · ${e.label} (${e.buffer})`).join('\n');
       marker.title=detail+(group.length>6?`\n+${group.length-6} more`:'');
       marker.setAttribute('aria-label',`${group.length} ${type} event${group.length===1?'':'s'}: ${detail}`);
       marker.addEventListener('click',()=>showEventInTable(first));lane.append(marker);
@@ -174,18 +196,18 @@ function tick() {
   const start = scheduleBounds?.start, end = scheduleBounds?.end;
   const before = start !== null && now < start;
   const after = end !== null && now >= end;
-  $('missionPhase').textContent=before?'BEFORE START':after?'SCHEDULE COMPLETE':events.length?'SCHEDULE IN PROGRESS':'NO EVENTS';
-  $('activeLabel').textContent=previous ? `Most recent: ${previous.name}` : 'No prior events';
-  if (next) {
-    $('nextName').textContent=next.name; $('nextBuffer').textContent=next.buffer;
-    $('nextUtc').textContent=`UTC · ${fmt(next.start,UTC)}`;
-    $('nextMt').textContent=`MT · ${fmt(next.start,MT)}`;
-    $('countdown').textContent=duration(next.start-now);
-    $('countdownNote').textContent='until next scheduled start';
+  $('missionPhase').textContent=!events.length?'NO EVENTS':before?'BEFORE START':after?'SCHEDULE COMPLETE':'SCHEDULE IN PROGRESS';
+  $('activeLabel').textContent=previous ? `Current: ${previous.label}` : 'No event started yet';
+  if (previous) {
+    $('nextName').textContent=previous.label; $('nextBuffer').textContent=previous.buffer;
+    $('nextUtc').textContent=`UTC · ${fmt(previous.start,UTC)}`;
+    $('nextMt').textContent=`MT · ${fmt(previous.start,MT)}`;
+    $('countdown').textContent=duration(now-previous.start);
+    $('countdownNote').textContent=next?'elapsed since current event started':'elapsed since last scheduled event';
   } else {
-    $('nextName').textContent=events.length?'All scheduled events started':'No events loaded';
+    $('nextName').textContent=events.length?'Awaiting first event':'No events loaded';
     $('nextBuffer').textContent='—'; $('nextUtc').textContent=''; $('nextMt').textContent='';
-    $('countdown').textContent='--:--:--'; $('countdownNote').textContent='No more upcoming events';
+    $('countdown').textContent='--:--:--'; $('countdownNote').textContent='No scheduled event has started yet';
   }
   let progress = 0;
   if (start !== null && end !== null && end > start) progress = Math.min(100,Math.max(0,(now-start)/(end-start)*100));
@@ -194,7 +216,7 @@ function tick() {
   const upcoming = $('upcomingList'); upcoming.replaceChildren();
   for (const e of events.slice(idx, idx+3)) {
     const item=create('div','upcomingRow'); item.append(create('div','eventNum',String(e.id).padStart(3,'0')));
-    const details=create('div'); details.append(create('div','eventTitle',e.name),create('div','eventTime',`${fmt(e.start,UTC)} · ${fmt(e.start,MT)}`));
+    const details=create('div'); details.append(create('div','eventTitle',e.label),create('div','eventTime',`${fmt(e.start,UTC)} · ${fmt(e.start,MT)}`),create('div','eventTime',`Duration: ${eventDuration(e)}`));
     item.append(details,create('div','eventRemaining',duration(e.start-now))); upcoming.append(item);
   }
   if (!upcoming.children.length) upcoming.append(create('div','note','No upcoming events.'));
@@ -205,27 +227,32 @@ function tick() {
 function load(text,name) {
   const parsed = parseSchedule(text);
   if (!parsed.events.length) throw new Error('No valid schedule events found. Expected NVM_SMALL## - NAME, an absolute suspend timestamp, SEQ_SUSPEND_ABS, and SEQ_CALL.');
-  events=parsed.events; scheduleBounds=parsed.bounds; sourceName=name; lastNext=-2;
-  $('scheduleName').textContent=sourceName;
-  $('scheduleRange').textContent=`${fmt(scheduleBounds.start,UTC)} → ${fmt(scheduleBounds.end,UTC)}`;
-  $('eventCount').textContent=`${events.length} events parsed`;
-  $('sourceStatus').textContent='Schedule loaded';
-  showError(''); drawTimeline(); tick();
+  const forMissions=targets(name);
+  if (!forMissions.length) throw new Error(`Filename must contain dyna_, glo_, or dynaglo_: ${name}`);
+  for (const mission of forMissions) missions[mission]={...parsed,name};
+  selectMission(selectedMission);
+
 }
 async function loadBundled() {
-  try {
-    $('sourceStatus').textContent='Loading schedule';
-    const res=await fetch('./schedule.prc',{cache:'no-store'});
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    load(await res.text(),'schedule.prc');
-  } catch (err) {
-    $('sourceStatus').textContent='Load failed';
-    showError(`Could not load schedule.prc (${err.message}). On GitHub Pages, ensure schedule.prc is in the same directory as index.html. Alternatively, choose Upload .prc.`);
+  // A 404 is expected when only one spacecraft has a bundled schedule.
+  for (const filename of ['dyna_ats_26_301.prc','glo_schedule.prc','dynaglo_schedule.prc']) {
+    try { const res=await fetch('./'+filename,{cache:'no-store'}); if(res.ok)load(await res.text(),filename); }
+    catch (err) { console.warn(`Could not load ${filename}:`,err); }
   }
+  selectMission(selectedMission);
 }
-$('fileInput').addEventListener('change',async e => {const f=e.target.files?.[0];if(!f)return;try{load(await f.text(),f.name)}catch(err){showError(err.message)}e.target.value='';});
-$('reloadBtn').addEventListener('click',loadBundled);
+$('tabDyna').addEventListener('click',()=>selectMission('DYNA'));
+$('tabGlo').addEventListener('click',()=>selectMission('GLO'));
+window.addEventListener('hashchange',()=>{const m=location.hash.toUpperCase()==='#GLO'?'GLO':'DYNA';if(m!==selectedMission)selectMission(m);});
+$('fileInput').addEventListener('change',async e => {
+  const files=Array.from(e.target.files||[]);if(!files.length)return;
+  const failures=[];
+  for(const f of files){try{load(await f.text(),f.name)}catch(err){failures.push(`${f.name}: ${err.message}`)}}
+  if (failures.length)showError(failures.join(' | '));
+  e.target.value='';
+});
+$('reloadBtn').addEventListener('click',()=>{missions.DYNA=null;missions.GLO=null;loadBundled();});
 $('search').addEventListener('input',()=>renderTable(Date.now()));
 $('viewFilter').addEventListener('change',()=>renderTable(Date.now()));
-$('jumpNext').addEventListener('click',()=>{if($('viewFilter').value==='past'){$('viewFilter').value='all'} if($('search').value)$('search').value='';renderTable(Date.now());const row=$('nextRow');if(row)row.scrollIntoView({behavior:'smooth',block:'center'});});
-drawTimeline();loadBundled();tick();setInterval(tick,1000);
+$('jumpNext').addEventListener('click',()=>{if($('viewFilter').value==='past')$('viewFilter').value='all';$('search').value='';renderTable(Date.now());const row=$('nextRow');if(row)row.scrollIntoView({behavior:'smooth',block:'center'});});
+selectMission(selectedMission);loadBundled();setInterval(tick,1000);
