@@ -16,3 +16,28 @@ tr.isCurrent{background:#1d3e52}tr.isCurrent td{opacity:1;color:#f4fcff}.isCurre
 .groundtrackPanel{min-width:0}.groundtrackPanel .sectionTop{flex-wrap:wrap}.groundtrackLegend{display:flex;align-items:center;flex-wrap:wrap;gap:13px;margin:14px 0 10px;color:#c4d5e9;font-size:12px}.groundtrackSwatch{display:inline-block;width:11px;height:11px;border-radius:50%;margin-right:6px}.groundtrackSwatch.dyna{background:#5fe4ee}.groundtrackSwatch.glo{background:#ffc778}.tleUpload{font-size:11px;cursor:pointer;border:1px solid #45617a;padding:5px 8px;border-radius:6px;margin-left:auto}.tleUpload:hover{border-color:#5fe4ee}.groundtrackMap{height:286px;min-height:240px;background:#10243a;border-radius:8px;border:1px solid #36506a;overflow:hidden;z-index:0}.groundtrackDetails{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.trackDetail{font-size:11px;line-height:1.6;background:#15253a;border:1px solid #30425b;padding:9px;border-radius:7px;overflow-wrap:anywhere}.trackDetail.active{border-color:#5fe4ee}.groundtrackMap .leaflet-container{font-family:inherit}.groundtrackMap .leaflet-control-attribution{font-size:9px;background:#15273fdb;color:#b7c7d9}.groundtrackMap .leaflet-control-attribution a{color:#a5def1}.gtPin{display:flex;align-items:center;justify-content:center;width:34px;height:20px;border-radius:12px;border:2px solid #0d1b2a;font:800 10px system-ui;color:#061627;box-shadow:0 1px 12px #0009}.gtPin.dyna{background:#5fe4ee}.gtPin.glo{background:#ffc778}.gtPin.active{outline:2px solid white;outline-offset:2px}.groundtrackMap .leaflet-popup-content-wrapper{background:#12243b;color:#f1f6ff}.groundtrackMap .leaflet-popup-tip{background:#12243b}@media(max-width:850px){.middle{grid-template-columns:1fr}.groundtrackMap{height:325px}}@media(max-width:500px){.groundtrackDetails{grid-template-columns:1fr}}
 
 .shadowDescription{font-size:11px;color:#c4bdeb;margin:10px 0 2px;line-height:1.5}.orbitalShadowCanvas{position:absolute;pointer-events:none}
+
+/* Wide mission-style ground-track display */
+.groundtrackPanel {margin:18px 0 16px;position:relative;overflow:visible}
+.mapHeader{align-items:center;gap:12px}
+.mapTopTools{display:flex;align-items:center;justify-content:flex-end;flex-wrap:wrap;gap:10px}
+.mapTopTools button,.mapSettings button,.mapSettings select{background:#162d48;border:1px solid #41617d;color:#dcecf9;border-radius:6px;padding:7px 10px;font:inherit;cursor:pointer}
+.mapTopTools .tleUpload{margin-left:0;padding:7px 10px}
+.groundtrackMap{height:clamp(350px,49vw,610px);border-radius:9px;background:#0d192b}
+.mapFrame{position:relative;margin-top:12px}
+.mapScaleBadge{position:absolute;z-index:650;top:13px;left:14px;background:#0c1b31dd;border:1px solid #3a536c;border-radius:5px;color:#bcd6ed;padding:7px 10px;pointer-events:none;font:700 11px ui-monospace,monospace;letter-spacing:.06em}
+.mapSettings{margin:12px 0 0;padding:14px;background:#101f33;border:1px solid #344d68;border-radius:8px;display:flex;flex-wrap:wrap;gap:14px 22px;align-items:center}
+.mapSettings[hidden]{display:none}
+.mapSettings label{display:flex;align-items:center;gap:7px;font-size:12px;color:#d7e4f4}
+.mapSettings input[type="range"]{width:100px;accent-color:#5fe4ee}
+.mapSettings input[type="checkbox"]{accent-color:#5fe4ee}
+.groundtrackLegend{justify-content:center;margin:15px 0 12px;gap:16px}
+.shadowSwatch{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:middle}
+.shadowSwatch.umbra{background:#11182a;border:1px solid #677188}
+.shadowSwatch.penumbra{background:#64558e}
+.legendPast,.legendFuture{color:#bbcadc}
+.groundtrackDetails{grid-template-columns:repeat(2,minmax(0,1fr))}
+.groundtrackMap .leaflet-control-zoom a{background:#152941;color:#dce9f7;border-color:#385571}
+.groundtrackMap .leaflet-control-zoom a:hover{background:#24405b;color:white}
+.gtPin.labelHidden{width:20px;height:20px;margin:0 auto;font-size:13px}
+@media(max-width:700px){.groundtrackMap{height:365px}.mapHeader{align-items:flex-start;flex-direction:column}.mapTopTools{justify-content:flex-start}.groundtrackDetails{grid-template-columns:1fr}.mapScaleBadge{font-size:9px}}

@@ -4,10 +4,11 @@
   const spacecraft = ['DYNA', 'GLO'];
   const colors = { DYNA: '#5fe4ee', GLO: '#ffc778' };
   const records = { DYNA: null, GLO: null };
-  let map, layers = [], lastPaths = 0, shadowCanvas = null, shadowContext = null, shadowUpdated = 0;
+  let map, baseLayer, layers = [], lastPaths = 0, shadowCanvas = null, shadowContext = null, shadowUpdated = 0;
+  const opts = { shadow: true, opacity: 1, tracks: true, labels: true, DYNA: true, GLO: true };
   const EARTH_RADIUS_KM = 6378.137, SUN_RADIUS_KM = 695700, AU_KM = 149597870.7;
   const byId = id => document.getElementById(id);
-  const output = msg => { byId('tleStatus').textContent = msg; };
+  const output = msg => { const el = byId('tleStatus'); if (el) el.textContent = msg; };
   function getTargets(filename) {
     const n = filename.toLowerCase();
     if (n.includes('dynaglo')) return spacecraft;
@@ -103,7 +104,7 @@
     const ctx = shadowContext;
     ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
     ctx.clearRect(0, 0, w, h);
-    if (!active) return;
+    if (!active || !opts.shadow) { shadowUpdated = now; return; }
     const p = position(active, now);
     if (!p) return;
     const shellRadius = EARTH_RADIUS_KM + p.altitude;
@@ -117,7 +118,7 @@
         const cl = Math.cos(lat);
         const state = shadowState(cl*Math.cos(lon), cl*Math.sin(lon), Math.sin(lat), shellRadius, sun);
         if (state === 'SUNLIT') continue;
-        ctx.fillStyle = state === 'UMBRA' ? 'rgba(4,8,24,.68)' : 'rgba(92,79,146,.33)';
+        ctx.fillStyle = state === 'UMBRA' ? `rgba(4,8,24,${(.68*opts.opacity).toFixed(3)})` : `rgba(92,79,146,${(.33*opts.opacity).toFixed(3)})`;
         ctx.fillRect(x, y, step, step);
       }
     }
@@ -138,6 +139,7 @@
     return paths;
   }
   function drawOrbit(name, record, now) {
+    if (!opts.tracks || !opts[name]) return;
     const col = colors[name];
     for (const phase of [-1, 1]) {
       const points = [];
@@ -178,12 +180,13 @@
       const p = record && position(record,now);
       const eclipse = record ? eclipseAt(record, now, sun) : null;
       details(name, record, p, now, eclipse);
-      if (!p) continue;
-      const icon = L.divIcon({className:'',html:`<div class="gtPin ${name.toLowerCase()} ${selectedMission===name?'active':''}">${name}</div>`,iconSize:[34,20],iconAnchor:[17,10]});
+      if (!p || !opts[name]) continue;
+      const icon = L.divIcon({className:'',html:`<div class="gtPin ${name.toLowerCase()} ${selectedMission===name?'active':''} ${opts.labels?'':'labelHidden'}">${opts.labels?name:'●'}</div>`,iconSize:[34,20],iconAnchor:[17,10]});
       const marker = L.marker([p.lat,p.lon],{icon,zIndexOffset:selectedMission===name?1000:500}).addTo(map);
       marker.bindPopup(`${name} · ${p.lat.toFixed(3)}° lat, ${p.lon.toFixed(3)}° lon<br>${p.altitude.toFixed(1)} km altitude<br><strong>${eclipse === 'UMBRA' ? 'In eclipse (umbra)' : eclipse === 'PENUMBRA' ? 'Partial eclipse' : eclipse === 'SUNLIT' ? 'Sunlit' : 'Illumination unavailable'}</strong><br>TLE: ${record.filename}`);
       render.markers.push(marker);
     }
+    const clock = byId('mapUtc'); if (clock) clock.textContent = new Date(now).toISOString().slice(11,19);
     if (records.DYNA && records.GLO && records.DYNA.line1 === records.GLO.line1 && records.DYNA.line2 === records.GLO.line2) {
       output('DYNA and GLO have identical TLEs — positions overlap');
     } else output(spacecraft.filter(name=>records[name]).length+' of 2 TLEs loaded');
@@ -212,9 +215,36 @@
     if (!loaded) output('No TLE files found — upload a DYNA/GLO .txt or .tle');
   }
   function initialize() {
-    if (!window.L || !window.satellite) { output('Map unavailable: could not load Leaflet or satellite.js'); return; }
+    if (!window.L || !window.satellite) { output('Map unavailable: missing ' + (!window.L ? 'Leaflet map library' : 'satellite.js orbit library') + '. Check network access and refresh.'); return; }
     map = L.map('groundtrackMap',{worldCopyJump:false,minZoom:1,maxZoom:7,zoomControl:true}).setView([0,0],1);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {attribution:'&copy; OpenStreetMap contributors',maxZoom:7,noWrap:true}).addTo(map);
+    const tiles = {
+      dark: ['https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
+      light: ['https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
+      street: ['https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', '&copy; OpenStreetMap']
+    };
+    function setBasemap(kind) {
+      if (baseLayer) map.removeLayer(baseLayer);
+      const spec = tiles[kind] || tiles.dark;
+      baseLayer = L.tileLayer(spec[0], {attribution:spec[1], maxZoom:7, noWrap:true}).addTo(map);
+      baseLayer.bringToBack();
+    }
+    setBasemap('dark');
+    byId('mapBasemap').addEventListener('change', e => setBasemap(e.target.value));
+    byId('mapSettingsToggle').addEventListener('click', () => {
+      const panel = byId('mapSettings'); panel.hidden = !panel.hidden;
+      byId('mapSettingsToggle').setAttribute('aria-expanded', String(!panel.hidden));
+      map.invalidateSize();
+    });
+    function refreshVisuals() { lastPaths=0; shadowUpdated=0; render(true); }
+    for (const [id,key] of [['showShadow','shadow'],['showTracks','tracks'],['showLabels','labels'],['showDyna','DYNA'],['showGlo','GLO']]) {
+      byId(id).addEventListener('change', e => {opts[key] = e.target.checked; refreshVisuals();});
+    }
+    byId('shadowOpacity').addEventListener('input', e => {
+      opts.opacity = Number(e.target.value)/100;
+      byId('shadowOpacityValue').textContent = e.target.value + '%';
+      shadowUpdated=0; shadeOrbitalShell(Date.now());
+    });
+    byId('mapReset').addEventListener('click', () => map.setView([0,0], 1));
     // Avoid map repeating infinitely, and keep both poles in frame.
     map.setMaxBounds([[-85,-180],[85,180]]);
     map.createPane('orbitalShadowPane');

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0a1224">
   <title>Spacecraft Schedule | DYNA &amp; GLO</title>
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="style.css?v=20261029-map2">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
 </head>
 <body>
@@ -25,17 +25,25 @@
       <div class="progressTrack"><div id="progressFill" class="progressFill"></div></div>
       <div class="timelineFoot"><span id="progressLabel">—</span><span id="activeLabel">—</span></div>
     </section>
-    <div class="middle">
-      <section class="panel upcoming"><div class="sectionTop"><h2>Coming up</h2><span class="subtle">Next 3 events · live countdown</span></div><div id="upcomingList" class="upcomingList"></div></section>
-      <section class="panel groundtrackPanel" aria-label="Spacecraft ground track">
-        <div class="sectionTop"><h2>Live spacecraft ground track</h2><span id="tleStatus" class="subtle">Loading TLEs…</span></div>
-        <div class="groundtrackLegend"><span><i class="groundtrackSwatch dyna"></i>DYNA</span><span><i class="groundtrackSwatch glo"></i>GLO</span><label class="tleUpload" for="tleInput">Upload TLE(s)</label><input id="tleInput" type="file" accept=".tle,.txt,text/plain" multiple hidden></div>
-        <div id="groundtrackMap" class="groundtrackMap" role="img" aria-label="Equirectangular map showing satellite positions and recent/future ground tracks"></div>
-        <div id="shadowDescription" class="shadowDescription">Orbital shell eclipse shadow: dark = full umbra; violet = penumbra.</div>
-        <div class="groundtrackDetails"><div id="dynaTleDetails" class="trackDetail">DYNA · No TLE loaded</div><div id="gloTleDetails" class="trackDetail">GLO · No TLE loaded</div></div>
-        <div class="note">SGP4 predictions from uploaded TLEs, not live telemetry. Dashed paths: past 90 minutes; solid paths: next 90 minutes. Positions and solar eclipses use your device clock. Eclipse overlay is computed at the selected spacecraft’s orbital altitude, not at sea level.</div>
-      </section>
-    </div>
+    <section class="panel groundtrackPanel" aria-label="Spacecraft ground track">
+      <div class="sectionTop mapHeader"><div><h2>Mission ground track</h2><div class="subtle">Live SGP4 orbital positions · orbital-altitude Sun/Earth shadow</div></div><div class="mapTopTools"><span id="tleStatus" class="subtle" role="status">Loading TLEs…</span><button id="mapSettingsToggle" type="button" aria-expanded="false">⚙ Display settings</button><label class="tleUpload" for="tleInput">Upload TLE(s)</label><input id="tleInput" type="file" accept=".tle,.txt,text/plain" multiple hidden></div></div>
+      <div id="mapSettings" class="mapSettings" hidden>
+        <label>Base map <select id="mapBasemap"><option value="dark">Dark</option><option value="light">Light</option><option value="street">Streets</option></select></label>
+        <label><input id="showShadow" type="checkbox" checked> Orbital-shell eclipse shading</label>
+        <label>Shadow opacity <input id="shadowOpacity" type="range" min="0" max="100" value="100"><output id="shadowOpacityValue">100%</output></label>
+        <label><input id="showTracks" type="checkbox" checked> Ground-track paths</label>
+        <label><input id="showLabels" type="checkbox" checked> Satellite labels</label>
+        <label><input id="showDyna" type="checkbox" checked> DYNA</label>
+        <label><input id="showGlo" type="checkbox" checked> GLO</label>
+        <button id="mapReset" type="button">Reset map view</button>
+      </div>
+      <div class="mapFrame"><div id="groundtrackMap" class="groundtrackMap" role="img" aria-label="World map with DYNA and GLO positions, orbital tracks, and eclipse regions"></div><div class="mapScaleBadge">LIVE ORBITAL GROUND TRACK · UTC <span id="mapUtc">--:--:--</span></div></div>
+      <div class="groundtrackLegend"><span><i class="groundtrackSwatch dyna"></i>DYNA</span><span><i class="groundtrackSwatch glo"></i>GLO</span><span class="legendPast">- - - Past 90 min</span><span class="legendFuture">━━ Future 90 min</span><span><i class="shadowSwatch umbra"></i>Umbra</span><span><i class="shadowSwatch penumbra"></i>Penumbra</span></div>
+      <div class="groundtrackDetails"><div id="dynaTleDetails" class="trackDetail">DYNA · No TLE loaded</div><div id="gloTleDetails" class="trackDetail">GLO · No TLE loaded</div></div>
+      <div id="shadowDescription" class="shadowDescription">Shadow computed at the selected spacecraft’s altitude, not the ground-level day/night terminator.</div>
+      <div class="note">TLE-based SGP4 predictions, not telemetry. Shaded areas represent full and partial solar occultation at the selected spacecraft’s orbital shell. TLE accuracy degrades with age.</div>
+    </section>
+    <section class="panel upcoming"><div class="sectionTop"><h2>Coming up</h2><span class="subtle">Next 3 events · live countdown</span></div><div id="upcomingList" class="upcomingList"></div></section>
     <section class="panel timelinePanel" aria-label="24-hour event timeline">
       <div class="tableHeader timelineHeader"><div><h2>24-hour event timeline</h2><div class="subtle">UTC day view · grouped markers indicate nearby event starts · select a marker to find its event</div></div>
         <div class="timelineControls"><button id="dayPrev" type="button" aria-label="Previous UTC day">← Previous</button><button id="dayToday" type="button">Today (UTC)</button><button id="dayNext" type="button" aria-label="Next UTC day">Next →</button></div></div>
@@ -56,8 +64,9 @@
     <footer>DYNA / GLO Schedule Viewer · Times reflect your device clock · Mountain time automatically handles daylight saving time · Static GitHub Pages site</footer>
   </div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
-  <script src="https://unpkg.com/satellite.js@5.0.0/dist/satellite.min.js" defer></script>
-  <script src="app.js" defer></script>
-  <script src="groundtrack.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.1/dist/satellite.min.js" defer></script>
+  <script src="app.js?v=20261029-map2" defer></script>
+  <script src="groundtrack.js?v=20261029-map2" defer></script>
+  <script>window.addEventListener("load", function () { setTimeout(function () { var s = document.getElementById("tleStatus"); if (s && s.textContent.includes("Loading")) { s.textContent = "Ground track did not initialize: check browser console / external scripts"; } }, 3500); });</script>
 </body>
 </html>

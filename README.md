@@ -65,3 +65,15 @@ Place **DYNA_TLE.txt** and **GLO_TLE.txt** (included with the site) in the repos
 The world map shades the **selected mission's orbital shell**, not the Earth surface night side. A dark region represents full Earth **umbra** (the entire solar disk is occluded by Earth); a violet fringe denotes **penumbra** (partial solar occultation). The shell radius is Earth radius plus the currently SGP4-propagated spacecraft altitude and the illumination geometry is recomputed each minute and when the map is navigated. Toggle DYNA or GLO to show the respective orbital shell; both spacecraft markers always remain visible.
 
 Each spacecraft's details and marker popup independently display **SUNLIT**, **PARTIAL ECLIPSE**, or **IN ECLIPSE (umbra)** based on its propagated three-dimensional position and the geometric angular overlap of Earth and Sun as seen from the spacecraft. The shadow is calculated from an approximate Sun ephemeris, spherical Earth, and a point on a constant-altitude shell. It does not account for atmospheric refraction, terrain, or the Earth's oblateness. The map shade represents locations where a satellite *at that altitude* would be eclipsed; it is not the ground-level terminator. Satellite positions are predictions from TLEs, not onboard telemetry.
+
+
+## Troubleshooting: Ground track missing
+
+The ground-track map must have `groundtrack.js`, `index.html`, and the style sheet in the same published directory. The HTML loads Leaflet and satellite.js via external CDNs, so network filtering can prevent initialization. The `tleStatus` text near the map now reports missing libraries.
+
+When updating GitHub Pages, check **Settings > Pages** to verify the published branch and folder, then open the live page, use **Ctrl+Shift+R** and inspect the page source for `groundtrack.js?v=20261029b`. If that file isn't in page source, GitHub Pages is still publishing the old HTML or a different folder/branch. Use DevTools > Network for any 404s or blocked CDN scripts.
+
+
+## Wide ground-track map
+
+The ground-track panel now spans the dashboard width, with a dark map by default and display settings for map style, spacecraft visibility, track visibility, labels, eclipse overlay and opacity. The eclipse overlay models occultation at the selected spacecraft's orbital altitude; it is **not** the surface night region. The rest of the schedule features remain unchanged.
