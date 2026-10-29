@@ -77,3 +77,9 @@ When updating GitHub Pages, check **Settings > Pages** to verify the published b
 ## Wide ground-track map
 
 The ground-track panel now spans the dashboard width, with a dark map by default and display settings for map style, spacecraft visibility, track visibility, labels, eclipse overlay and opacity. The eclipse overlay models occultation at the selected spacecraft's orbital altitude; it is **not** the surface night region. The rest of the schedule features remain unchanged.
+
+
+## Reference-inspired ground track update
+The full-width vector map defaults to a dark, country-outlined projection; switch to tiled basemaps in Display Settings. Ground stations are loaded from `ground-stations.json` (based on the provided LSN CSV). Satellite footprints are geometric line-of-sight horizon boundaries at zero elevation, plotted around the instantaneous satellite subpoint. Satellite labels, station labels, visibility footprints, orbit tracks and eclipse overlay can be toggled. The altitude-adjusted eclipse shading remains calculated in browser from finite Sun/Earth angular geometry rather than ground sunlight. This uses `topojson-client` and the `world-atlas` dataset via jsDelivr, as well as Leaflet and satellite.js.
+
+The supplied Python backend described an additional `web/` folder containing frontend HTML/JS/CSS, but those three frontend files were not included in the upload; this version reproduces the visible presentation within the existing schedule website instead of claiming a verbatim port.

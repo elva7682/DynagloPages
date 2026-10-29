@@ -2,10 +2,10 @@
 // Browser-only SGP4 ground track. Requires satellite.js and Leaflet (loaded by index.html).
 (() => {
   const spacecraft = ['DYNA', 'GLO'];
-  const colors = { DYNA: '#5fe4ee', GLO: '#ffc778' };
+  const colors = { DYNA: '#ffd21f', GLO: '#2f7cff' };
   const records = { DYNA: null, GLO: null };
-  let map, baseLayer, layers = [], lastPaths = 0, shadowCanvas = null, shadowContext = null, shadowUpdated = 0;
-  const opts = { shadow: true, opacity: 1, tracks: true, labels: true, DYNA: true, GLO: true };
+  let map, baseLayer, vectorLayer = null, stationLayers = [], footprintLayers = [], layers = [], lastPaths = 0, shadowCanvas = null, shadowContext = null, shadowUpdated = 0;
+  const opts = { shadow: true, opacity: 1, tracks: true, labels: true, stations: true, footprints: true, labelSize: 11, DYNA: true, GLO: true };
   const EARTH_RADIUS_KM = 6378.137, SUN_RADIUS_KM = 695700, AU_KM = 149597870.7;
   const byId = id => document.getElementById(id);
   const output = msg => { const el = byId('tleStatus'); if (el) el.textContent = msg; };
@@ -153,6 +153,48 @@
       }
     }
   }
+  function footprintRadiusDegrees(altKm) {
+    const rho = Math.acos(Math.max(-1,Math.min(1,EARTH_RADIUS_KM/(EARTH_RADIUS_KM+altKm))));
+    return rho*180/Math.PI;
+  }
+  function drawFootprints(now) {
+    footprintLayers.forEach(layer=>map.removeLayer(layer)); footprintLayers=[];
+    if(!opts.footprints)return;
+    for(const name of spacecraft){
+      if(!records[name] || !opts[name]) continue;
+      const pos = position(records[name],now); if(!pos)continue;
+      const radius = footprintRadiusDegrees(pos.altitude);
+      // The circular footprint is a spherical geodesic, not a circle in screen pixels.
+      const lat0=pos.lat*Math.PI/180, lon0=pos.lon*Math.PI/180, delta=radius*Math.PI/180;
+      const pts=[];
+      for(let bearing=0;bearing<=360;bearing+=3){
+        const a=bearing*Math.PI/180;
+        const lat=Math.asin(Math.sin(lat0)*Math.cos(delta)+Math.cos(lat0)*Math.sin(delta)*Math.cos(a));
+        const lon=lon0+Math.atan2(Math.sin(a)*Math.sin(delta)*Math.cos(lat0),Math.cos(delta)-Math.sin(lat0)*Math.sin(lat));
+        const lng=((lon*180/Math.PI+540)%360)-180;
+        pts.push([lat*180/Math.PI,lng]);
+      }
+      // L.polygon's anti-meridian edges need splitting if they jump across the dateline.
+      for(const seg of splitAtDateLine(pts)){
+        const layer=L.polyline(seg,{color:colors[name],weight:1,opacity:.55,dashArray:'5 5',interactive:false}).addTo(map);
+        footprintLayers.push(layer);
+      }
+    }
+  }
+  async function loadGroundStations() {
+    try {
+      const r=await fetch('./ground-stations.json',{cache:'no-store'});
+      if(!r.ok)throw new Error('No station file');
+      const stations=await r.json();
+      for(const s of stations){
+        const marker=L.marker([s.lat,s.lon],{icon:L.divIcon({className:'',html:`<div class="gtStation"><span class="stationDot"></span>${s.code}</div>`,iconSize:[110,18],iconAnchor:[8,9]}),zIndexOffset:100});
+        marker.bindPopup(`<strong>${s.code}</strong><br>${s.site}<br>${s.lat.toFixed(4)}°, ${s.lon.toFixed(4)}°`);
+        stationLayers.push(marker);
+      }
+      refreshStations();
+    }catch(e){console.warn('Ground stations unavailable:',e);}
+  }
+  function refreshStations(){for(const layer of stationLayers){if(opts.stations && !map.hasLayer(layer))layer.addTo(map);else if(!opts.stations && map.hasLayer(layer))map.removeLayer(layer);}}
   function details(name, record, p, now, eclipse) {
     const el = byId(name.toLowerCase() + 'TleDetails');
     el.classList.toggle('active', name === selectedMission);
@@ -170,6 +212,7 @@
       for (const name of spacecraft) if(records[name]) drawOrbit(name,records[name],now);
       lastPaths = now;
     }
+    if (force || now - (render.lastFootprints||0) >= 60000){drawFootprints(now);render.lastFootprints=now;}
     if (force || now - shadowUpdated >= 60000) shadeOrbitalShell(now);
     const sun = sunEcef(now);
     // Recreate markers to update positions; markers are not part of the orbit path cache.
@@ -222,13 +265,30 @@
       light: ['https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', '&copy; OpenStreetMap &copy; CARTO'],
       street: ['https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', '&copy; OpenStreetMap']
     };
-    function setBasemap(kind) {
-      if (baseLayer) map.removeLayer(baseLayer);
-      const spec = tiles[kind] || tiles.dark;
-      baseLayer = L.tileLayer(spec[0], {attribution:spec[1], maxZoom:7, noWrap:true}).addTo(map);
-      baseLayer.bringToBack();
+    async function enableVectorMap() {
+      if (vectorLayer){vectorLayer.addTo(map);return;}
+      // World-atlas is the same TopoJSON data source used by the uploaded publisher.
+      const res=await fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json');
+      if(!res.ok || !window.topojson) throw new Error('World vector data unavailable');
+      const topo=await res.json();
+      vectorLayer=L.geoJSON(topojson.feature(topo,topo.objects.countries),{
+        style:()=>({color:'#435265',weight:.65,fillColor:'#182537',fillOpacity:1,opacity:.9}),interactive:false
+      });
+      vectorLayer.addTo(map);
+      vectorLayer.bringToBack();
     }
-    setBasemap('dark');
+    async function setBasemap(kind) {
+      if(baseLayer){map.removeLayer(baseLayer);baseLayer=null;}
+      if(vectorLayer)map.removeLayer(vectorLayer);
+      if(kind==='mission'){
+        try{await enableVectorMap();}catch(e){console.warn(e); const spec=tiles.dark;baseLayer=L.tileLayer(spec[0],{attribution:spec[1],maxZoom:7,noWrap:true}).addTo(map);baseLayer.bringToBack();}
+      }else{
+        const spec=tiles[kind]||tiles.dark;
+        baseLayer=L.tileLayer(spec[0], {attribution:spec[1],maxZoom:7,noWrap:true}).addTo(map);
+        baseLayer.bringToBack();
+      }
+    }
+    setBasemap('mission');
     byId('mapBasemap').addEventListener('change', e => setBasemap(e.target.value));
     byId('mapSettingsToggle').addEventListener('click', () => {
       const panel = byId('mapSettings'); panel.hidden = !panel.hidden;
@@ -236,9 +296,10 @@
       map.invalidateSize();
     });
     function refreshVisuals() { lastPaths=0; shadowUpdated=0; render(true); }
-    for (const [id,key] of [['showShadow','shadow'],['showTracks','tracks'],['showLabels','labels'],['showDyna','DYNA'],['showGlo','GLO']]) {
-      byId(id).addEventListener('change', e => {opts[key] = e.target.checked; refreshVisuals();});
+    for (const [id,key] of [['showShadow','shadow'],['showStations','stations'],['showFootprints','footprints'],['showTracks','tracks'],['showLabels','labels'],['showDyna','DYNA'],['showGlo','GLO']]) {
+      byId(id).addEventListener('change', e => {opts[key] = e.target.checked; refreshStations();refreshVisuals();});
     }
+    byId('labelFontSize').addEventListener('input',e=>{opts.labelSize=Number(e.target.value); document.documentElement.style.setProperty('--map-label-size',opts.labelSize+'px');byId('labelFontSizeValue').textContent=opts.labelSize+'px';});
     byId('shadowOpacity').addEventListener('input', e => {
       opts.opacity = Number(e.target.value)/100;
       byId('shadowOpacityValue').textContent = e.target.value + '%';
@@ -267,6 +328,7 @@
     byId('reloadBtn').addEventListener('click',()=>{records.DYNA=null;records.GLO=null;loadBundledTles();});
     window.addEventListener('hashchange',()=>render(true));
     loadBundledTles();
+    loadGroundStations();
     setInterval(()=>render(),15000);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initialize); else initialize();

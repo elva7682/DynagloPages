@@ -1,0 +1,32 @@
+[
+  {
+    "site": "Iceland",
+    "code": "LS-IS01",
+    "lat": 65.647206,
+    "lon": -20.245111
+  },
+  {
+    "site": "Chile",
+    "code": "LS-CL01",
+    "lat": -53.041563,
+    "lon": -70.84694
+  },
+  {
+    "site": "Boulder",
+    "code": "LASP",
+    "lat": 40.014984,
+    "lon": -105.270546
+  },
+  {
+    "site": "Fairbanks",
+    "code": "UAF",
+    "lat": 64.860004,
+    "lon": -147.848825
+  },
+  {
+    "site": "Taiwan",
+    "code": "NCU",
+    "lat": 24.97151,
+    "lon": 121.19184
+  }
+]

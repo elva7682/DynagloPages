@@ -41,3 +41,22 @@ tr.isCurrent{background:#1d3e52}tr.isCurrent td{opacity:1;color:#f4fcff}.isCurre
 .groundtrackMap .leaflet-control-zoom a:hover{background:#24405b;color:white}
 .gtPin.labelHidden{width:20px;height:20px;margin:0 auto;font-size:13px}
 @media(max-width:700px){.groundtrackMap{height:365px}.mapHeader{align-items:flex-start;flex-direction:column}.mapTopTools{justify-content:flex-start}.groundtrackDetails{grid-template-columns:1fr}.mapScaleBadge{font-size:9px}}
+
+/* Reference-style mission ops vector map, inspired by the supplied Python publisher. */
+.groundtrackPanel{background:#0b1322;border-color:#26394d}
+.groundtrackMap{background:#080e19!important;border:1px solid #314354;border-radius:4px}
+.groundtrackMap .leaflet-control-container .leaflet-control-zoom{border:1px solid #30465e}
+.groundtrackMap .leaflet-control-zoom a{background:#0e1828;color:#dae9f6}
+.groundtrackMap .leaflet-control-attribution{background:#0e1828b8}
+.gtPin{font-size:var(--map-label-size,11px);height:24px;min-width:48px;width:auto;padding:0 8px;border-radius:3px;border:1px solid currentColor;box-shadow:0 0 0 2px #08101b,0 0 18px #000c;font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-weight:900;letter-spacing:.02em}
+.gtPin.dyna{color:#ffd21f;background:#3b300c;border-color:#ffd21f}
+.gtPin.glo{color:#44a1ff;background:#091e38;border-color:#44a1ff}
+.gtPin.active{outline:1px solid #fff;outline-offset:3px}
+.gtStation{color:#00e2ef;font:var(--map-label-size,11px) ui-monospace,Consolas,monospace;font-weight:700;white-space:nowrap;text-shadow:0 1px 3px #000,0 0 8px #000}
+.gtStation .stationDot{display:inline-block;width:7px;height:7px;background:#00d7ff;border:1px solid white;border-radius:50%;margin-right:4px;vertical-align:middle}
+.stationSwatch{display:inline-block;width:8px;height:8px;background:#00d7ff;border-radius:50%;margin-right:6px}
+.footprintSwatch{display:inline-block;width:13px;height:8px;border:1px dashed #ffd21f;background:#ffdc2720;margin-right:6px}
+.groundtrackLegend{font-family:ui-monospace,Consolas,monospace}
+.groundtrackSwatch.dyna{background:#ffd21f}.groundtrackSwatch.glo{background:#2f7cff}
+.mapSettings{background:#0b1728;border-color:#2d455d}
+.mapScaleBadge{font-family:ui-monospace,Consolas,monospace;letter-spacing:.08em}
