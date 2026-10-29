@@ -4,8 +4,8 @@
   const spacecraft = ['DYNA', 'GLO'];
   const colors = { DYNA: '#ffd21f', GLO: '#2f7cff' };
   const records = { DYNA: null, GLO: null };
-  let map, baseLayer, vectorLayer = null, stationLayers = [], footprintLayers = [], layers = [], lastPaths = 0, shadowCanvas = null, shadowContext = null, shadowUpdated = 0;
-  const opts = { shadow: true, opacity: 1, tracks: true, labels: true, stations: true, footprints: true, labelSize: 11, DYNA: true, GLO: true };
+  let map, baseLayer, vectorLayer = null, latitudeGuideLayers = [], layers = [], lastPaths = 0, shadowCanvas = null, shadowContext = null, shadowUpdated = 0;
+  const opts = { shadow: true, opacity: 1, tracks: true, labels: true, labelSize: 11, DYNA: true, GLO: true };
   const EARTH_RADIUS_KM = 6378.137, SUN_RADIUS_KM = 695700, AU_KM = 149597870.7;
   const byId = id => document.getElementById(id);
   const output = msg => { const el = byId('tleStatus'); if (el) el.textContent = msg; };
@@ -153,48 +153,19 @@
       }
     }
   }
-  function footprintRadiusDegrees(altKm) {
-    const rho = Math.acos(Math.max(-1,Math.min(1,EARTH_RADIUS_KM/(EARTH_RADIUS_KM+altKm))));
-    return rho*180/Math.PI;
-  }
-  function drawFootprints(now) {
-    footprintLayers.forEach(layer=>map.removeLayer(layer)); footprintLayers=[];
-    if(!opts.footprints)return;
-    for(const name of spacecraft){
-      if(!records[name] || !opts[name]) continue;
-      const pos = position(records[name],now); if(!pos)continue;
-      const radius = footprintRadiusDegrees(pos.altitude);
-      // The circular footprint is a spherical geodesic, not a circle in screen pixels.
-      const lat0=pos.lat*Math.PI/180, lon0=pos.lon*Math.PI/180, delta=radius*Math.PI/180;
-      const pts=[];
-      for(let bearing=0;bearing<=360;bearing+=3){
-        const a=bearing*Math.PI/180;
-        const lat=Math.asin(Math.sin(lat0)*Math.cos(delta)+Math.cos(lat0)*Math.sin(delta)*Math.cos(a));
-        const lon=lon0+Math.atan2(Math.sin(a)*Math.sin(delta)*Math.cos(lat0),Math.cos(delta)-Math.sin(lat0)*Math.sin(lat));
-        const lng=((lon*180/Math.PI+540)%360)-180;
-        pts.push([lat*180/Math.PI,lng]);
-      }
-      // L.polygon's anti-meridian edges need splitting if they jump across the dateline.
-      for(const seg of splitAtDateLine(pts)){
-        const layer=L.polyline(seg,{color:colors[name],weight:1,opacity:.55,dashArray:'5 5',interactive:false}).addTo(map);
-        footprintLayers.push(layer);
-      }
+  // Two fixed latitude guides in the equirectangular geographic map.
+  function addLatitudeGuides() {
+    latitudeGuideLayers.forEach(layer => map.removeLayer(layer));
+    latitudeGuideLayers = [];
+    for (const [lat, color, label] of [[40, '#ff4fd8', '40° N'], [-40, '#00f0ff', '40° S']]) {
+      // Use small longitude increments so lines remain continuous at every zoom level.
+      const points = Array.from({length:361}, (_,i) => [lat, i - 180]);
+      const line = L.polyline(points, {color, weight:2.7, opacity:0.95, interactive:false, noClip:true, className:'latitude-guide'}).addTo(map);
+      latitudeGuideLayers.push(line);
+      const tag = L.marker([lat, -170], {interactive:false, icon:L.divIcon({className:'gtLatitudeMarker', html:`<span style="color:${color}">${label}</span>`, iconSize:[55,16], iconAnchor:[0,8]})}).addTo(map);
+      latitudeGuideLayers.push(tag);
     }
   }
-  async function loadGroundStations() {
-    try {
-      const r=await fetch('./ground-stations.json',{cache:'no-store'});
-      if(!r.ok)throw new Error('No station file');
-      const stations=await r.json();
-      for(const s of stations){
-        const marker=L.marker([s.lat,s.lon],{icon:L.divIcon({className:'',html:`<div class="gtStation"><span class="stationDot"></span>${s.code}</div>`,iconSize:[110,18],iconAnchor:[8,9]}),zIndexOffset:100});
-        marker.bindPopup(`<strong>${s.code}</strong><br>${s.site}<br>${s.lat.toFixed(4)}°, ${s.lon.toFixed(4)}°`);
-        stationLayers.push(marker);
-      }
-      refreshStations();
-    }catch(e){console.warn('Ground stations unavailable:',e);}
-  }
-  function refreshStations(){for(const layer of stationLayers){if(opts.stations && !map.hasLayer(layer))layer.addTo(map);else if(!opts.stations && map.hasLayer(layer))map.removeLayer(layer);}}
   function details(name, record, p, now, eclipse) {
     const el = byId(name.toLowerCase() + 'TleDetails');
     el.classList.toggle('active', name === selectedMission);
@@ -212,7 +183,6 @@
       for (const name of spacecraft) if(records[name]) drawOrbit(name,records[name],now);
       lastPaths = now;
     }
-    if (force || now - (render.lastFootprints||0) >= 60000){drawFootprints(now);render.lastFootprints=now;}
     if (force || now - shadowUpdated >= 60000) shadeOrbitalShell(now);
     const sun = sunEcef(now);
     // Recreate markers to update positions; markers are not part of the orbit path cache.
@@ -296,8 +266,8 @@
       map.invalidateSize();
     });
     function refreshVisuals() { lastPaths=0; shadowUpdated=0; render(true); }
-    for (const [id,key] of [['showShadow','shadow'],['showStations','stations'],['showFootprints','footprints'],['showTracks','tracks'],['showLabels','labels'],['showDyna','DYNA'],['showGlo','GLO']]) {
-      byId(id).addEventListener('change', e => {opts[key] = e.target.checked; refreshStations();refreshVisuals();});
+    for (const [id,key] of [['showShadow','shadow'],['showTracks','tracks'],['showLabels','labels'],['showDyna','DYNA'],['showGlo','GLO']]) {
+      byId(id).addEventListener('change', e => {opts[key] = e.target.checked; refreshVisuals();});
     }
     byId('labelFontSize').addEventListener('input',e=>{opts.labelSize=Number(e.target.value); document.documentElement.style.setProperty('--map-label-size',opts.labelSize+'px');byId('labelFontSizeValue').textContent=opts.labelSize+'px';});
     byId('shadowOpacity').addEventListener('input', e => {
@@ -308,6 +278,7 @@
     byId('mapReset').addEventListener('click', () => map.setView([0,0], 1));
     // Avoid map repeating infinitely, and keep both poles in frame.
     map.setMaxBounds([[-85,-180],[85,180]]);
+    addLatitudeGuides();
     map.createPane('orbitalShadowPane');
     map.getPane('orbitalShadowPane').style.zIndex = '350';
     map.getPane('orbitalShadowPane').style.pointerEvents = 'none';
@@ -328,7 +299,6 @@
     byId('reloadBtn').addEventListener('click',()=>{records.DYNA=null;records.GLO=null;loadBundledTles();});
     window.addEventListener('hashchange',()=>render(true));
     loadBundledTles();
-    loadGroundStations();
     setInterval(()=>render(),15000);
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initialize); else initialize();

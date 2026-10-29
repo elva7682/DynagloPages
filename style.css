@@ -60,3 +60,15 @@ tr.isCurrent{background:#1d3e52}tr.isCurrent td{opacity:1;color:#f4fcff}.isCurre
 .groundtrackSwatch.dyna{background:#ffd21f}.groundtrackSwatch.glo{background:#2f7cff}
 .mapSettings{background:#0b1728;border-color:#2d455d}
 .mapScaleBadge{font-family:ui-monospace,Consolas,monospace;letter-spacing:.08em}
+
+/* Reference frontend-inspired ground-track presentation */
+.groundtrackPanel{background:#0a0f14!important;border-color:#1c2e3d!important}
+.groundtrackMap{background:#0a0f14!important;border:1px solid #1c2e3d!important;border-radius:3px!important}
+.mapScaleBadge{font-family:'Courier New',monospace;letter-spacing:.04em;color:#4caf82!important;background:rgba(10,15,20,.86)!important}
+.groundtrackLegend,.trackDetail,.mapSettings{font-family:'Courier New',monospace}
+.groundtrackMap .leaflet-control-zoom a{background:#0f1c28!important;color:#7ab8d8!important;border-color:#1e3448!important}
+.groundtrackMap .leaflet-popup-content-wrapper,.groundtrackMap .leaflet-popup-tip{background:#0f1c28;color:#d0d8e0}
+.groundtrackLegend .latitudeLegend{display:inline-flex;align-items:center;gap:8px}
+.groundtrackLegend .latitudeLegend i{display:inline-block;width:24px;height:3px;background:linear-gradient(90deg,#ff4fd8 0 50%,#00f0ff 50% 100%);box-shadow:0 0 7px #00f0ff55}
+.gtLatitudeMarker{font:bold 12px 'Courier New',monospace;white-space:nowrap;text-shadow:0 0 4px #050a10,0 0 8px #050a10;pointer-events:none}
+.latitude-guide{filter:drop-shadow(0 0 2px rgba(255,255,255,.2))}
