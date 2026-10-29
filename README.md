@@ -50,3 +50,18 @@ To preview locally, use a small local static server such as `python -m http.serv
 Event names ending in `_START` or `_CONT` are displayed without those suffixes. `HDR_ATT` displays as XBAND DOWNLINK; `UHF_ATT` displays as UHF POINTING.
 
 Each event duration is calculated as the time from its scheduled start to the **next event start**, including events with the same timestamp (0 seconds). Durations are displayed as HH:MM:SS, prefixed with days for spans longer than 24 hours. The final event displays an em dash (`—`), because no following event timestamp exists. Duration represents time between scheduled events, not actual command execution duration.
+
+
+## Live DYNA / GLO TLE ground track
+
+The **Schedule Overview** panel has been replaced by a satellite map. It appears on both spacecraft tabs and shows both DYNA (cyan) and GLO (gold), emphasizing the selected spacecraft. Browser-side **SGP4** calculations convert uploaded two-line elements into sub-satellite latitude/longitude and altitude. Markers update every 15 seconds; +/- 90-minute predicted tracks redraw every minute. Dashed lines show the previous 90 minutes, solid lines the next 90 minutes. Tracks are split at the international date line instead of connecting across the map. Zoom and pan with the map controls.
+
+Place **DYNA_TLE.txt** and **GLO_TLE.txt** (included with the site) in the repository root. Files may be `.txt` or `.tle`. Default recognized files are `DYNA_TLE.txt`, `GLO_TLE.txt`, `DYNA_TLE.tle`, and `GLO_TLE.tle`. For arbitrary additional filenames, create `tle-files.json` containing an array such as `["DYNA_2026_11_01.tle", "GLO_2026_11_01.txt"]` and commit the named files too; the last loaded matching file is used. File names containing `DYNA` are associated with DYNA, `GLO` with GLO, and `DYNAGLO` with both. You can also click **Upload TLE(s)** inside the map panel to load files temporarily into your browser (this does not save to GitHub). **Reload** reads the files in the repository again.
+
+**Important:** The two example TLE files provided contain exactly the same orbital elements (NORAD 60182, epoch October 27, 2026), so the predicted positions and tracks coincide until distinct TLEs are provided. The map warns you when this happens. TLEs describe predicted position, not telemetry; accuracy degrades as the elements age. The display shows age in days. The website needs internet access to load Leaflet, satellite.js, and OpenStreetMap tiles. All propagation happens locally in the browser. 
+
+## Orbital-altitude eclipse overlay
+
+The world map shades the **selected mission's orbital shell**, not the Earth surface night side. A dark region represents full Earth **umbra** (the entire solar disk is occluded by Earth); a violet fringe denotes **penumbra** (partial solar occultation). The shell radius is Earth radius plus the currently SGP4-propagated spacecraft altitude and the illumination geometry is recomputed each minute and when the map is navigated. Toggle DYNA or GLO to show the respective orbital shell; both spacecraft markers always remain visible.
+
+Each spacecraft's details and marker popup independently display **SUNLIT**, **PARTIAL ECLIPSE**, or **IN ECLIPSE (umbra)** based on its propagated three-dimensional position and the geometric angular overlap of Earth and Sun as seen from the spacecraft. The shadow is calculated from an approximate Sun ephemeris, spherical Earth, and a point on a constant-altitude shell. It does not account for atmospheric refraction, terrain, or the Earth's oblateness. The map shade represents locations where a satellite *at that altitude* would be eclipsed; it is not the ground-level terminator. Satellite positions are predictions from TLEs, not onboard telemetry.
