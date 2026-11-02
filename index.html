@@ -5,8 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0a1224">
   <title>Spacecraft Schedule | DYNA &amp; GLO</title>
-  <link rel="stylesheet" href="style.css?v=20261029-latitude1">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="shell">
@@ -25,25 +24,10 @@
       <div class="progressTrack"><div id="progressFill" class="progressFill"></div></div>
       <div class="timelineFoot"><span id="progressLabel">—</span><span id="activeLabel">—</span></div>
     </section>
-    <section class="panel groundtrackPanel" aria-label="Spacecraft ground track">
-      <div class="sectionTop mapHeader"><div><h2>Mission ground track</h2><div class="subtle">Reference-inspired vector map · ±40° latitude guides · orbital-altitude eclipse mask</div></div><div class="mapTopTools"><span id="tleStatus" class="subtle" role="status">Loading TLEs…</span><button id="mapSettingsToggle" type="button" aria-expanded="false">⚙ Display settings</button><label class="tleUpload" for="tleInput">Upload TLE(s)</label><input id="tleInput" type="file" accept=".tle,.txt,text/plain" multiple hidden></div></div>
-      <div id="mapSettings" class="mapSettings" hidden>
-        <label>Base map <select id="mapBasemap"><option value="mission">Mission vector (reference style)</option><option value="dark">Dark tiles</option><option value="light">Light</option><option value="street">Streets</option></select></label>
-        <label><input id="showShadow" type="checkbox" checked> Orbital-shell eclipse shading</label>
-        <label>Shadow opacity <input id="shadowOpacity" type="range" min="0" max="100" value="100"><output id="shadowOpacityValue">100%</output></label>
-        <label>Label size <input id="labelFontSize" type="range" min="8" max="18" value="11"><output id="labelFontSizeValue">11px</output></label><label><input id="showTracks" type="checkbox" checked> Ground-track paths</label>
-        <label><input id="showLabels" type="checkbox" checked> Satellite labels</label>
-        <label><input id="showDyna" type="checkbox" checked> DYNA</label>
-        <label><input id="showGlo" type="checkbox" checked> GLO</label>
-        <button id="mapReset" type="button">Reset map view</button>
-      </div>
-      <div class="mapFrame"><div id="groundtrackMap" class="groundtrackMap" role="img" aria-label="World map of DYNA and GLO orbital tracks, eclipse regions, and lines at plus and minus forty degrees latitude"></div><div class="mapScaleBadge">LIVE ORBITAL GROUND TRACK · UTC <span id="mapUtc">--:--:--</span></div></div>
-      <div class="groundtrackLegend"><span><i class="groundtrackSwatch dyna"></i>DYNA</span><span><i class="groundtrackSwatch glo"></i>GLO</span><span class="legendPast">- - - Past 90 min</span><span class="legendFuture">━━ Future 90 min</span><span><i class="shadowSwatch umbra"></i>Umbra</span><span><i class="shadowSwatch penumbra"></i>Penumbra</span><span class="latitudeLegend"><i></i> +40° N / −40° S guides</span></div>
-      <div class="groundtrackDetails"><div id="dynaTleDetails" class="trackDetail">DYNA · No TLE loaded</div><div id="gloTleDetails" class="trackDetail">GLO · No TLE loaded</div></div>
-      <div id="shadowDescription" class="shadowDescription">Shadow computed at the selected spacecraft’s altitude, not the ground-level day/night terminator.</div>
-      <div class="note">TLE-based SGP4 predictions, not telemetry. Shaded areas represent full and partial solar occultation at the selected spacecraft’s orbital shell. TLE accuracy degrades with age.</div>
-    </section>
-    <section class="panel upcoming"><div class="sectionTop"><h2>Coming up</h2><span class="subtle">Next 3 events · live countdown</span></div><div id="upcomingList" class="upcomingList"></div></section>
+    <div class="middle">
+      <section class="panel upcoming"><div class="sectionTop"><h2>Coming up</h2><span class="subtle">Next 3 events · live countdown</span></div><div id="upcomingList" class="upcomingList"></div></section>
+      <section class="panel snapshot"><div class="sectionTop"><h2>Schedule overview</h2></div><div class="stat"><span>Total events</span><strong id="totalEvents">—</strong></div><div class="stat"><span>Completed starts</span><strong id="completedEvents">—</strong></div><div class="stat"><span>Remaining starts</span><strong id="remainingEvents">—</strong></div><div class="legend"><span><i class="swatch c1"></i>DAYGLOW</span><span><i class="swatch c2"></i>AURORA</span><span><i class="swatch c3"></i>ECLIPSE</span><span><i class="swatch c4"></i>IDLE</span><span><i class="swatch c5"></i>XBAND DOWNLINK</span><span><i class="swatch c6"></i>UHF POINTING</span></div><div class="note">Events are shown from planned command times, not live spacecraft telemetry.</div></section>
+    </div>
     <section class="panel timelinePanel" aria-label="24-hour event timeline">
       <div class="tableHeader timelineHeader"><div><h2>24-hour event timeline</h2><div class="subtle">UTC day view · grouped markers indicate nearby event starts · select a marker to find its event</div></div>
         <div class="timelineControls"><button id="dayPrev" type="button" aria-label="Previous UTC day">← Previous</button><button id="dayToday" type="button">Today (UTC)</button><button id="dayNext" type="button" aria-label="Next UTC day">Next →</button></div></div>
@@ -63,11 +47,6 @@
     <section class="panel tablePanel"><div class="tableHeader"><div><h2>Full event schedule</h2><div class="subtle">Highlights the current event. All times are displayed in both time zones.</div></div><div class="filters"><input id="search" type="search" placeholder="Search event or buffer" aria-label="Search events"><select id="viewFilter" aria-label="Event filter"><option value="all">All events</option><option value="upcoming">Upcoming only</option><option value="past">Past only</option></select><button id="jumpNext" type="button">Jump to next</button></div></div><div class="tableScroll"><table><thead><tr><th>#</th><th>EVENT</th><th>BUFFER</th><th>START · UTC</th><th>START · MOUNTAIN</th><th>DURATION</th><th>STATUS</th></tr></thead><tbody id="eventsBody"></tbody></table></div><div id="tableSummary" class="tableSummary"></div></section>
     <footer>DYNA / GLO Schedule Viewer · Times reflect your device clock · Mountain time automatically handles daylight saving time · Static GitHub Pages site</footer>
   </div>
-  <script src="https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js" defer></script>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
-  <script src="https://cdn.jsdelivr.net/npm/satellite.js@6.0.1/dist/satellite.min.js" defer></script>
-  <script src="app.js?v=20261029-latitude1" defer></script>
-  <script src="groundtrack.js?v=20261029-latitude1" defer></script>
-  <script>window.addEventListener("load", function () { setTimeout(function () { var s = document.getElementById("tleStatus"); if (s && s.textContent.includes("Loading")) { s.textContent = "Ground track did not initialize: check browser console / external scripts"; } }, 3500); });</script>
+  <script src="app.js" defer></script>
 </body>
 </html>
